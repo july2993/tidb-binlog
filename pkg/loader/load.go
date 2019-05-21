@@ -229,6 +229,25 @@ func (s *loaderImpl) getTableInfo(schema string, table string) (info *tableInfo,
 	return s.refreshTableInfo(schema, table)
 }
 
+func needRefreshTableInfo(sql string) bool {
+	stmt, err := parser.New().ParseOneStmt(sql, "", "")
+	if err != nil {
+		log.Error("parse sql failed", zap.String("sql", sql), zap.Error(err))
+		return false
+	}
+
+	switch stmt.(type) {
+	case *ast.DropTableStmt:
+		return false
+	case *ast.DropDatabaseStmt:
+		return false
+	case *ast.TruncateTableStmt:
+		return false
+	}
+
+	return true
+}
+
 func isCreateDatabaseDDL(sql string) bool {
 	stmt, err := parser.New().ParseOneStmt(sql, "", "")
 	if err != nil {
@@ -483,7 +502,9 @@ func newBatchManager(s *loaderImpl) *batchManager {
 		fExecDDL:             s.execDDL,
 		fDDLSuccessCallback: func(txn *Txn) {
 			s.markSuccess(txn)
-			s.refreshTableInfo(txn.DDL.Database, txn.DDL.Table)
+			if needRefreshTableInfo(txn.DDL.SQL) {
+				s.refreshTableInfo(txn.DDL.Database, txn.DDL.Table)
+			}
 		},
 	}
 }
