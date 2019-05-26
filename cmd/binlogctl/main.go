@@ -20,6 +20,7 @@ import (
 	"github.com/pingcap/log"
 	ctl "github.com/pingcap/tidb-binlog/binlogctl"
 	"github.com/pingcap/tidb-binlog/pkg/node"
+	"github.com/pingcap/tidb-binlog/pump/storage"
 	"go.uber.org/zap"
 )
 
@@ -59,6 +60,12 @@ func main() {
 		err = ctl.ApplyAction(cfg.EtcdURLs, node.PumpNode, cfg.NodeID, close)
 	case ctl.OfflineDrainer:
 		err = ctl.ApplyAction(cfg.EtcdURLs, node.DrainerNode, cfg.NodeID, close)
+	case ctl.ResetHeaderPointer:
+		if len(cfg.DataDir) == 0 || cfg.DataDir == ctl.DefaultDataDir {
+			log.Info("data-dir must be configured as the data directory of pump")
+			return
+		}
+		err = storage.ResetHeadpointer(cfg.DataDir)
 	}
 
 	if err != nil {

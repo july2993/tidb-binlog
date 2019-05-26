@@ -28,7 +28,8 @@ import (
 
 const (
 	defaultEtcdURLs = "http://127.0.0.1:2379"
-	defaultDataDir  = "binlog_position"
+	// DefaultDataDir is default data directory
+	DefaultDataDir = "binlog_position"
 )
 
 const (
@@ -58,6 +59,9 @@ const (
 
 	// OfflineDrainer is comamnd used for offlien drainer.
 	OfflineDrainer = "offline-drainer"
+
+	// ResetHeaderPointer set the headerPointer to newest pointer
+	ResetHeaderPointer = "reset-header-pointer"
 )
 
 // Config holds the configuration of drainer
@@ -84,7 +88,7 @@ func NewConfig() *Config {
 
 	cfg.FlagSet.StringVar(&cfg.Command, "cmd", "pumps", "operator: \"generate_meta\", \"pumps\", \"drainers\", \"update-pump\", \"update-drainer\", \"pause-pump\", \"pause-drainer\", \"offline-pump\", \"offline-drainer\"")
 	cfg.FlagSet.StringVar(&cfg.NodeID, "node-id", "", "id of node, use to update some node with operation update-pump, update-drainer, pause-pump, pause-drainer, offline-pump and offline-drainer")
-	cfg.FlagSet.StringVar(&cfg.DataDir, "data-dir", defaultDataDir, "meta directory path")
+	cfg.FlagSet.StringVar(&cfg.DataDir, "data-dir", DefaultDataDir, "meta directory path")
 	cfg.FlagSet.StringVar(&cfg.EtcdURLs, "pd-urls", defaultEtcdURLs, "a comma separated list of PD endpoints")
 	cfg.FlagSet.StringVar(&cfg.SSLCA, "ssl-ca", "", "Path of file that contains list of trusted SSL CAs for connection with cluster components.")
 	cfg.FlagSet.StringVar(&cfg.SSLCert, "ssl-cert", "", "Path of file that contains X509 certificate in PEM format for connection with cluster components.")
@@ -119,7 +123,7 @@ func (cfg *Config) Parse(args []string) error {
 	}
 
 	// adjust configuration
-	util.AdjustString(&cfg.DataDir, defaultDataDir)
+	util.AdjustString(&cfg.DataDir, DefaultDataDir)
 
 	// transfore tls config
 	sCfg := &security.Config{
