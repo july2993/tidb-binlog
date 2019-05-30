@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ngaut/log"
+	"github.com/pingcap/tidb/store/tikv/oracle"
 	pb "github.com/pingcap/tipb/go-binlog"
 )
 
@@ -91,6 +92,8 @@ type sorter struct {
 	items  *list.List
 	wg     sync.WaitGroup
 	closed int32
+
+	largestSeenTS int64
 }
 
 func newSorter(fn func(item sortItem)) *sorter {
@@ -118,6 +121,12 @@ func (s *sorter) pushTSItem(item sortItem) {
 	}
 
 	s.lock.Lock()
+	if item.start > s.largestSeenTS {
+		s.largestSeenTS = item.start
+	}
+	if item.commit > s.largestSeenTS {
+		s.largestSeenTS = item.commit
+	}
 
 	if item.tp == pb.BinlogType_Prewrite {
 		s.waitStartTS[item.start] = struct{}{}
@@ -161,7 +170,7 @@ func (s *sorter) run() {
 				}
 
 				// we may get the C binlog soon at start up time
-				if time.Since(getTime) > time.Second {
+				if time.Since(getTime) > time.Second || passMaxTxnTime(item.start, s.largestSeenTS) {
 					if s.resolver != nil && s.resolver(item.start) {
 						break
 					}
@@ -198,4 +207,19 @@ func (s *sorter) close() {
 	s.cond.L.Unlock()
 
 	s.wg.Wait()
+}
+
+func passMaxTxnTime(startTS int64, latestTS int64) bool {
+	if latestTS <= startTS {
+		return false
+	}
+
+	startSecond := oracle.ExtractPhysical(uint64(startTS)) / int64(time.Second/time.Millisecond)
+	maxSecond := oracle.ExtractPhysical(uint64(latestTS)) / int64(time.Second/time.Millisecond)
+
+	if maxSecond-startSecond <= maxTxnTimeoutSecond {
+		return false
+	}
+
+	return true
 }
