@@ -743,7 +743,7 @@ func (a *Append) batchRequest(reqs chan *request, maxBatchNum int) chan []*reque
 }
 
 func (a *Append) writeToValueLog(reqs chan *request) chan *request {
-	done := make(chan *request, chanSize)
+	done := make(chan *request, 1<<27)
 
 	go func() {
 		defer close(done)
